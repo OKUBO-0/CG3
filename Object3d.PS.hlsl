@@ -30,6 +30,22 @@ PixelShaderOutput main(VertexShaderOutput input)
     float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     PixelShaderOutput output;
     
+    // textureのa値が0.5以下のときにPixelを棄却
+    if (textureColor.a <= 0.5)
+    {
+        discard;
+    }
+    // textureのa値が0のときにPielを棄却
+    if (textureColor.a == 0.0)
+    {
+        discard;
+    }
+    // output.coloのa値が0のときにPixelを棄却
+    if (output.color.a == 0.0)
+    {
+        discard;
+    }
+    
     if (gMaterial.enableLighting != 0)
     {
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
