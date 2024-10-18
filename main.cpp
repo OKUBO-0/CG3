@@ -428,7 +428,6 @@ struct D3DResourceLeakChecker {
 
 
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index) {
-	
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	handleCPU.ptr += (descriptorSize * index);
 	return handleCPU;
@@ -436,7 +435,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12
 
 
 D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index) {
-
 	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handleGPU.ptr += (descriptorSize * index);
 	return handleGPU;
@@ -810,7 +808,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region DepthStencilState
 	// DepthStencilStateの設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	// Deothの機能を有効化する
+	// Depthの機能を有効化する
 	depthStencilDesc.DepthEnable = true;
 	// 書き込みします
 	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -854,7 +852,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region VertexResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * kSubdivision * kSubdivision * 6);
 #pragma region DepthStencilTextureを作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenciResource = CreateDepthStencilTexturResource(device, kClientWidth, kClientHeight);
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTexturResource(device, kClientWidth, kClientHeight);
 #pragma region VertexBufferResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 4);
 #pragma region IndexResourceを生成
@@ -869,7 +867,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//Format
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;//2Dtexture
 	//DSHeapの先頭にDSVを作る
-	device->CreateDepthStencilView(depthStenciResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 #pragma endregion
 
 
@@ -1182,6 +1180,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc3.Texture2D.MipLevels = UINT(metadata3.mipLevels);
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
 	instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
 	instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1306,34 +1305,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 			ImGui::Separator();
 
-			// Texture変更
-			if (ImGui::CollapsingHeader("Texture change")) {
-				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			}
-			ImGui::Separator();
-
-			// Lighting
-			if (ImGui::CollapsingHeader("Lighting")) {
-				ImGui::ColorEdit4("LightSetColor", &directionalLightData->color.x);
-				ImGui::DragFloat3("Lightdirection", &directionalLightData->direction.x, 0.01f, -1.0f, 1.0f);
+			// カメラウィンドウ
+			if (ImGui::CollapsingHeader("Camera")){
+				ImGui::DragFloat3("CameraTranslate", &cameraTransform.translate.x, 0.01f);
+				ImGui::DragFloat3("CameraRotate", &cameraTransform.rotate.x, 0.01f);
+				if (ImGui::Button("Reset Transform")) {
+					cameraTransform = { {1.0f, 1.0f, 1.0f},{0.0f, 0.0f, 0.0f},{0.0f, 0.0f, -5.0f} };
+				}
 			}
 			ImGui::Separator();
 
 			// スフィアウィンドウ
-			if (ImGui::CollapsingHeader("3DObject")) {
+			if (ImGui::CollapsingHeader("Sphere")) {
 				ImGui::DragFloat3("Translation", &transform.translate.x, 0.01f);
 				ImGui::DragFloat3("Rotation", &transform.rotate.x, 0.01f);
 				ImGui::DragFloat2("Scale", &transform.scale.x, 0.01f);
 				if (ImGui::Button("Reset Transform")) {
 					transform = { {1.0f, 1.0f, 1.0f}, {0.0f, -1.5f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 				}
+				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 			}
 			ImGui::Separator();
 
 			// モデルウィンドウ
 			if (ImGui::CollapsingHeader("Model"))
 			{
-				ImGui::DragFloat3("ModelTransrate", &transformModel.translate.x, 0.01f);
+				ImGui::DragFloat3("ModelTranslate", &transformModel.translate.x, 0.01f);
 				ImGui::DragFloat3("ModelRotate", &transformModel.rotate.x, 0.01f);
 				ImGui::DragFloat3("ModelScale", &transformModel.scale.x, 0.01f);
 				if (ImGui::Button("Reset Transform")) {
@@ -1353,6 +1350,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 			ImGui::Separator();
 
+			// Lighting
+			if (ImGui::CollapsingHeader("Lighting")) {
+				ImGui::ColorEdit4("LightSetColor", &directionalLightData->color.x);
+				ImGui::DragFloat3("Lightdirection", &directionalLightData->direction.x, 0.01f, -1.0f, 1.0f);
+			}
+			ImGui::Separator();
+
 			// UVTransform
 			if (ImGui::CollapsingHeader("UVTransform")) {
 				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
@@ -1360,7 +1364,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::SliderAngle("UVRotate", &uvTransformSprite.rotate.z);
 			}
 			ImGui::Separator();
-
 
 			ImGui::End();
 			ImGui::Render();
@@ -1426,7 +1429,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			//描画！
 			// commandList->DrawInstanced(6, 1, 0, 0);
-			//commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+			// commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 #pragma endregion
 
 
