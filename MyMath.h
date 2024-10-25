@@ -28,6 +28,7 @@ struct Material {
 struct TransformationMatrix {
 	Matrix4x4 WVP;
 	Matrix4x4 World;
+	Vector4 color;
 };
 
 struct DirectionalLight {
@@ -49,6 +50,21 @@ struct MaterialData {
 struct ModelData {
 	std::vector<VertexData>vertices;
 	MaterialData material;
+};
+
+struct Particle {
+	Transform transform;
+	Vector3 velocity;
+	Vector4 color;
+	float lifetime;
+	float currentTime;
+};
+
+struct ParticleForGPU
+{
+	Matrix4x4 WVP;
+	Matrix4x4 World;
+	Vector4 color;
 };
 
 
