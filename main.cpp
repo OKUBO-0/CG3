@@ -800,6 +800,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	//blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
@@ -1142,7 +1143,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//Instancing用のTransformationMatrixリソースを作る
 	const uint32_t kNumMaxInstance = 10;//インスタンス数
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =CreateBufferResource(device, sizeof(ParticleForGPU) * kNumMaxInstance);
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(ParticleForGPU) * kNumMaxInstance);
 	//書き込むためのアドレスを取得
 	ParticleForGPU* instancingData = nullptr;
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
@@ -1277,11 +1278,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ゲームの処理
 #pragma region Transformを使ってCBufferを更新する
 			//transform.rotate.y += 0.03f;
-			/*if (start) {
+			if (start) {
 				for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
 					particles[index].transform.translate += particles[index].velocity * kDeltaTime;
 				}
-			}*/
+			}
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -1314,25 +1315,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			//instance用	
 			uint32_t numInstance = 0;
+			float alpha = 1.0f;
 			for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
 				if (particles[index].lifetime <= particles[index].currentTime) {
 					continue;
 				}
 
-				Matrix4x4 worldMatrix =MakeAffineMatrix(
-					particles[index].transform.scale, 
-					particles[index].transform.rotate, 
+				Matrix4x4 worldMatrix = MakeAffineMatrix(
+					particles[index].transform.scale,
+					particles[index].transform.rotate,
 					particles[index].transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 
-				particles[index].transform.translate += particles[index].velocity * kDeltaTime;
-				particles[index].currentTime += kDeltaTime;
-				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifetime);
+				if (start) {
+					particles[index].transform.translate += particles[index].velocity * kDeltaTime;
+					particles[index].currentTime += kDeltaTime;
+					alpha -= (particles[index].currentTime / particles[index].lifetime);
+				}
+
 				instancingData[index].WVP = worldViewProjectionMatrix;
 				instancingData[index].World = worldMatrix;
 				instancingData[index].color = particles[index].color;
-				instancingData[index].color.w = alpha;
 				++numInstance;
+				instancingData[index].color.w = alpha;
 			}
 
 			ImGui_ImplDX12_NewFrame();
@@ -1347,7 +1352,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::Separator();
 
 			// カメラウィンドウ
-			if (ImGui::CollapsingHeader("Camera")){
+			if (ImGui::CollapsingHeader("Camera")) {
 				ImGui::DragFloat3("CameraTranslate", &cameraTransform.translate.x, 0.01f);
 				ImGui::DragFloat3("CameraRotate", &cameraTransform.rotate.x, 0.01f);
 				if (ImGui::Button("Reset Transform")) {
@@ -1506,7 +1511,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 #pragma region コマンドをキックする
-			ID3D12CommandList* commandLists[] = { commandList.Get()};
+			ID3D12CommandList* commandLists[] = { commandList.Get() };
 			commandQueue->ExecuteCommandLists(1, commandLists);
 			swapChain->Present(1, 0);
 
