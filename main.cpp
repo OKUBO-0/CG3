@@ -1244,7 +1244,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Transform transform{ {1.0f,1.0f,1.0f},{0.0f,-1.5f,0.0f},{0.0f,0.0f,0.0f } };
 
 #pragma region cameraTransform変数
-	Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
+	Transform cameraTransform = { {1.0f,1.0f,1.0f},{std::numbers::pi_v<float> / 3.0f,std::numbers::pi_v<float>,0.0f} ,{ 0.0f,23.0f,10.0f} };
 
 #pragma region spriteTransform変数
 	Transform transformSprite{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f} ,{0.0f,0.0f,0.0f} };
@@ -1258,6 +1258,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
+
+	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
 
 	//Instancing用
 	Particle particles[kNumMaxInstance];
@@ -1313,6 +1315,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
+			Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, cameraMatrix);
+			billboardMatrix.m[3][0] = 0.0f;
+			billboardMatrix.m[3][1] = 0.0f;
+			billboardMatrix.m[3][2] = 0.0f;
+
 			//instance用	
 			uint32_t numInstance = 0;
 			float alpha = 1.0f;
@@ -1321,16 +1328,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					continue;
 				}
 
-				Matrix4x4 worldMatrix = MakeAffineMatrix(
-					particles[index].transform.scale,
-					particles[index].transform.rotate,
-					particles[index].transform.translate);
+				Matrix4x4 worldMatrix = MakeScaleMatrix(
+					particles[index].transform.scale) * billboardMatrix * MakeTranslateMatrix(particles[index].transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 
 				if (start) {
-					particles[index].transform.translate += particles[index].velocity * kDeltaTime;
+					/*particles[index].transform.translate += particles[index].velocity * kDeltaTime;
 					particles[index].currentTime += kDeltaTime;
-					alpha -= (particles[index].currentTime / particles[index].lifetime);
+					alpha -= (particles[index].currentTime / particles[index].lifetime);*/
+					float alpha = 1.0f;
 				}
 
 				instancingData[index].WVP = worldViewProjectionMatrix;
