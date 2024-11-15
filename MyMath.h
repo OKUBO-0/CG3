@@ -67,6 +67,13 @@ struct ParticleForGPU
 	Vector4 color;
 };
 
+struct Emitter {
+	Transform transform;
+	uint32_t count;
+	float frequency;
+	float frequencyTime;
+};
+
 
 Matrix4x4 MakeIdentity4x4();
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);

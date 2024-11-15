@@ -401,7 +401,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 			std::string materialFilename;
 			s >> materialFilename;
 			//基本的にobjファイルと同一階層にmtlは存在させるので、ディレクトリ名とファイル名を渡す
-			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
+			modelData.material.textureFilePath = "./Resources/circle.png";
 		}
 	}
 	return modelData;
@@ -442,19 +442,34 @@ D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12
 
 
 // Particle生成関数
-Particle MakeNewParticle(std::mt19937& randomEngine) {
-	std::uniform_real_distribution<float>distribution(-1.0, 1.0f);
+Particle MakeNewParticle(std::mt19937& randomEngine, const Vector3& translate) {
+
+	std::uniform_real_distribution<float>distribution(-1.0f, 1.0f);
 	std::uniform_real_distribution<float>distColor(0.0f, 1.0f);
 	std::uniform_real_distribution<float>distTime(1.0f, 3.0f);
+
 	Particle particle;
-	particle.transform.scale = { 0.5f,0.5f,0.5f };
+	Vector3 randomTranslate{ distribution(randomEngine),distribution(randomEngine) ,distribution(randomEngine) };
+
+	particle.transform.scale = { 1.0f,1.0f,1.0f };
 	particle.transform.rotate = { 0.0f,3.0f,0.0f };
-	particle.transform.translate = { distribution(randomEngine),distribution(randomEngine) ,distribution(randomEngine) };
+	particle.transform.translate = translate + randomTranslate;
+
 	particle.velocity = { distribution(randomEngine),distribution(randomEngine) ,distribution(randomEngine) };
 	particle.color = { distColor(randomEngine),distColor(randomEngine) ,distColor(randomEngine),1 };
 	particle.lifetime = distTime(randomEngine);
 	particle.currentTime = 0;
+
 	return particle;
+}
+
+
+std::list<Particle>Emit(const Emitter& emitter, std::mt19937& randomEngine) {
+	std::list<Particle>particles;
+	for (uint32_t cout = 0; cout < emitter.count; ++cout) {
+		particles.push_back(MakeNewParticle(randomEngine, emitter.transform.translate));
+	}
+	return particles;
 }
 
 
@@ -1142,7 +1157,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 	//Instancing用のTransformationMatrixリソースを作る
-	const uint32_t kNumMaxInstance = 10;//インスタンス数
+	const uint32_t kNumMaxInstance = 100;//インスタンス数
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device, sizeof(ParticleForGPU) * kNumMaxInstance);
 	//書き込むためのアドレスを取得
 	ParticleForGPU* instancingData = nullptr;
@@ -1259,17 +1274,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::random_device seedGenerator;
 	std::mt19937 randomEngine(seedGenerator());
 
-	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
 
 	//Instancing用
-	Particle particles[kNumMaxInstance];
-	for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
-		particles[index] = MakeNewParticle(randomEngine);
-	}
-	const float kDeltaTime = 1.0f / 60.f;
+	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
 
-	bool useMonsterBall = false;
+	std::list<Particle> particles;
+	Emitter emitter{};
+	emitter.count = 100;
+	emitter.frequency = 1.0f;
+	emitter.frequencyTime = 0.0f;
+	emitter.transform.translate = { 0.0f,0.0f,0.0f };
+	emitter.transform.rotate = { 0.0f,0.0f,0.0f };
+	emitter.transform.scale = { 10.0f,10.0f,10.0f };
+
+	const float kDeltaTime = 1.0f / 60.f;
 	bool start = false;
+	bool useMonsterBall = false;
 
 	while (msg.message != WM_QUIT) {
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -1280,11 +1300,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ゲームの処理
 #pragma region Transformを使ってCBufferを更新する
 			//transform.rotate.y += 0.03f;
-			if (start) {
-				for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
-					particles[index].transform.translate += particles[index].velocity * kDeltaTime;
-				}
-			}
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -1320,30 +1335,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			billboardMatrix.m[3][1] = 0.0f;
 			billboardMatrix.m[3][2] = 0.0f;
 
-			//instance用	
+			//instance用
 			uint32_t numInstance = 0;
-			float alpha = 1.0f;
-			for (uint32_t index = 0; index < kNumMaxInstance; ++index) {
-				if (particles[index].lifetime <= particles[index].currentTime) {
+			for (std::list<Particle>::iterator particleIterator = particles.begin(); particleIterator != particles.end();) {
+				if ((*particleIterator).lifetime <= (*particleIterator).currentTime) {
+					particleIterator = particles.erase(particleIterator);
 					continue;
 				}
-
-				Matrix4x4 worldMatrix = MakeScaleMatrix(
-					particles[index].transform.scale) * billboardMatrix * MakeTranslateMatrix(particles[index].transform.translate);
+				Matrix4x4 worldMatrix = MakeScaleMatrix((*particleIterator).transform.scale) * billboardMatrix * MakeTranslateMatrix((*particleIterator).transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 
-				if (start) {
-					/*particles[index].transform.translate += particles[index].velocity * kDeltaTime;
-					particles[index].currentTime += kDeltaTime;
-					alpha -= (particles[index].currentTime / particles[index].lifetime);*/
-					float alpha = 1.0f;
+				(*particleIterator).transform.translate += (*particleIterator).velocity * kDeltaTime;
+				(*particleIterator).currentTime += kDeltaTime;
+				float alpha = 1.0f - ((*particleIterator).currentTime / (*particleIterator).lifetime);
+				if (numInstance < kNumMaxInstance) {
+					instancingData[numInstance].WVP = worldViewProjectionMatrix;
+					instancingData[numInstance].World = worldMatrix;
+					instancingData[numInstance].color = (*particleIterator).color;
+					instancingData[numInstance].color.w = alpha;
+					++numInstance;
 				}
+				++particleIterator;
+			}
 
-				instancingData[index].WVP = worldViewProjectionMatrix;
-				instancingData[index].World = worldMatrix;
-				instancingData[index].color = particles[index].color;
-				++numInstance;
-				instancingData[index].color.w = alpha;
+			emitter.frequencyTime += kDeltaTime;//時刻を進める
+			if (emitter.frequency <= emitter.frequencyTime) {//頻度より大きいなら発生
+				particles.splice(particles.end(), Emit(emitter, randomEngine));//発生処理
+				emitter.frequencyTime -= emitter.frequency;//余計に過ぎた時間も加味して頻度計算する
 			}
 
 			ImGui_ImplDX12_NewFrame();
@@ -1384,6 +1402,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				ImGui::DragFloat3("ModelTranslate", &transformModel.translate.x, 0.01f);
 				ImGui::DragFloat3("ModelRotate", &transformModel.rotate.x, 0.01f);
 				ImGui::DragFloat3("ModelScale", &transformModel.scale.x, 0.01f);
+				ImGui::Separator();
+				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 				if (ImGui::Button("Reset Transform")) {
 					transformModel = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
 				}
@@ -1401,8 +1421,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			}
 			ImGui::Separator();
 
-			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::Checkbox("start", &start);
+			// パーティクル
+			if (ImGui::CollapsingHeader("Particles")){
+				ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
+			}
 			ImGui::Separator();
 
 			// Lighting
