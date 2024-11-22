@@ -12,6 +12,11 @@
 
 float Cot(float theta);
 
+struct AABB {
+	Vector3 min;
+	Vector3 max;
+};
+
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
@@ -74,6 +79,11 @@ struct Emitter {
 	float frequencyTime;
 };
 
+struct AccelerationField {
+	Vector3 acceleration;
+	AABB area;
+};
+
 
 Matrix4x4 MakeIdentity4x4();
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
@@ -88,3 +98,4 @@ Matrix4x4 MakeRotateXMatrix(float radian);
 Matrix4x4 MakeRotateYMatrix(float radian);
 Matrix4x4 MakeRotateZMatrix(float radian);
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
+bool IsCollision(const AABB& aabb, const Vector3& point);

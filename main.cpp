@@ -1287,6 +1287,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	emitter.transform.rotate = { 0.0f,0.0f,0.0f };
 	emitter.transform.scale = { 10.0f,10.0f,10.0f };
 
+	AccelerationField accelerationFienld;
+	accelerationFienld.acceleration = { 15.0f,0.0f,0.0f };
+	accelerationFienld.area.min = { 0.0f,0.0f,0.0f };
+	accelerationFienld.area.max = { 1.0f,1.0f,1.0f };
+
 	const float kDeltaTime = 1.0f / 60.f;
 	bool start = false;
 	bool useMonsterBall = false;
@@ -1344,6 +1349,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 				Matrix4x4 worldMatrix = MakeScaleMatrix((*particleIterator).transform.scale) * billboardMatrix * MakeTranslateMatrix((*particleIterator).transform.translate);
 				Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+
+				if (IsCollision(accelerationFienld.area, (*particleIterator).transform.translate)) {
+					(*particleIterator).velocity += accelerationFienld.acceleration * kDeltaTime;
+				}
 
 				(*particleIterator).transform.translate += (*particleIterator).velocity * kDeltaTime;
 				(*particleIterator).currentTime += kDeltaTime;
