@@ -502,7 +502,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region ウィンドウ生成と表示
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName,
-		L"CG2",
+		L"LE2C_04_オオクボ_タク",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -1288,7 +1288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	emitter.transform.scale = { 10.0f,10.0f,10.0f };
 
 	AccelerationField accelerationFienld;
-	accelerationFienld.acceleration = { 15.0f,0.0f,0.0f };
+	accelerationFienld.acceleration = { 0.0f,20.0f,0.0f };
 	accelerationFienld.area.min = { 0.0f,0.0f,0.0f };
 	accelerationFienld.area.max = { 1.0f,1.0f,1.0f };
 
