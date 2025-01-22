@@ -221,14 +221,14 @@ Microsoft::WRL::ComPtr<ID3D12Resource>
 CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX::TexMetadata& metadata) {
 
 	// metadataを基にResourceの設定
-	D3D12_RESOURCE_DESC resouceDesc{ };
-	resouceDesc.Width = UINT(metadata.width);                             // Textureの幅
-	resouceDesc.Height = UINT(metadata.height);                           // Textureの高さ
-	resouceDesc.MipLevels = UINT16(metadata.mipLevels);                   // mipmapの数
-	resouceDesc.DepthOrArraySize = UINT16(metadata.arraySize);            // 奥行きor配Texturaの配列数
-	resouceDesc.Format = metadata.format;                                 // Textureのフォーマット
-	resouceDesc.SampleDesc.Count = 1;                                     // サンプリクト。１固定。
-	resouceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textureの次元数。普段使っているのは２次元
+	D3D12_RESOURCE_DESC resourceDesc{ };
+	resourceDesc.Width = UINT(metadata.width);                             // Textureの幅
+	resourceDesc.Height = UINT(metadata.height);                           // Textureの高さ
+	resourceDesc.MipLevels = UINT16(metadata.mipLevels);                   // mipmapの数
+	resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize);            // 奥行きor配Texturaの配列数
+	resourceDesc.Format = metadata.format;                                 // Textureのフォーマット
+	resourceDesc.SampleDesc.Count = 1;                                     // サンプリクト。１固定。
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textureの次元数。普段使っているのは２次元
 
 	// 利用するHeapの設定。非常に特殊な運用。
 	D3D12_HEAP_PROPERTIES heapProperties{};
@@ -236,12 +236,12 @@ CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX
 	//heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK; // writeBackポリシーでCPUアクセス可能
 	//heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;          // プロセッサの近くに配置
 
-	// Resouceの作成
+	// Resourceの作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
 	HRESULT hr = device->CreateCommittedResource(
 		&heapProperties,                   // Heapの設定
 		D3D12_HEAP_FLAG_NONE,              // Heapの特殊設定。特になし
-		&resouceDesc,                      // Resourceの設定
+		&resourceDesc,                      // Resourceの設定
 		D3D12_RESOURCE_STATE_COPY_DEST,    // 初回のResourceState, Textureは基本読むだけ
 		nullptr,                           // Clear最適値。使わないのでnullptr
 		IID_PPV_ARGS(&resource));          // 作成するResourceポインタへのポインタ
@@ -255,12 +255,12 @@ CreateTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, const DirectX
 Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<ID3D12Resource>texture, const DirectX::ScratchImage& mipImages, Microsoft::WRL::ComPtr<ID3D12Device> device,
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList)
 {
-	std::vector<D3D12_SUBRESOURCE_DATA> subresouces;
-	DirectX::PrepareUpload(device.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresouces);
-	uint64_t intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, UINT(subresouces.size()));
+	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+	DirectX::PrepareUpload(device.Get(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subresources);
+	uint64_t intermediateSize = GetRequiredIntermediateSize(texture.Get(), 0, UINT(subresources.size()));
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = CreateBufferResource(device, intermediateSize);
-	UpdateSubresources(commandList.Get(), texture.Get(), intermediateResource.Get(), 0, 0, UINT(subresouces.size()), subresouces.data());
+	UpdateSubresources(commandList.Get(), texture.Get(), intermediateResource.Get(), 0, 0, UINT(subresources.size()), subresources.data());
 
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -275,24 +275,24 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureData(Microsoft::WRL::ComPtr<
 #pragma endregion  
 
 #pragma region DepthStencilTexture関数
-Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTexturResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height) {
+Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(Microsoft::WRL::ComPtr<ID3D12Device> device, int32_t width, int32_t height) {
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;//Textureの幅
 	resourceDesc.Height = height;//Textureの高さ
 	resourceDesc.MipLevels = 1;//mipmapの数
-	resourceDesc.DepthOrArraySize = 1;//奥行きor配列Texturの配列数
-	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//DetpthStencilとして利用可能なフォーマット
+	resourceDesc.DepthOrArraySize = 1;//奥行きor配列Textureの配列数
+	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//DepthStencilとして利用可能なフォーマット
 	resourceDesc.SampleDesc.Count = 1;//サンプリング。１固定
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;//2次元
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;//DepthSrencilとして使う通知
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;//DepthStencilとして使う通知
 
-	//利用するhepの設定
+	//利用するheapの設定
 	D3D12_HEAP_PROPERTIES heapProperties{  };
 	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;//VRAM上に作る
 	//深度値のクリア設定
-	D3D12_CLEAR_VALUE depthClerValue{};
-	depthClerValue.DepthStencil.Depth = 1.0f;//最大値
-	depthClerValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//フォーアット。Resource合わせる
+	D3D12_CLEAR_VALUE depthClearValue{};
+	depthClearValue.DepthStencil.Depth = 1.0f;//最大値
+	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//フォーアット。Resource合わせる
 	//Resourceの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = nullptr;
 	HRESULT hr = device->CreateCommittedResource(
@@ -300,7 +300,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTexturResource(Microsof
 		D3D12_HEAP_FLAG_NONE,//Heapの特殊設定。特になし
 		&resourceDesc,//Resourceの設定
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,//深度値を書き込む状態のしておく
-		&depthClerValue,//Clear最適値
+		&depthClearValue,//Clear最適値
 		IID_PPV_ARGS(&resource));//作成するResourceポインタへのポインタ
 	assert(SUCCEEDED(hr));
 	return resource;
@@ -336,7 +336,7 @@ MaterialData LoadMaterialTemplateFile(const std::string& directorypath, const st
 
 #pragma region LoadObjeFil関数
 ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename) {
-	ModelData modelData;            //構築するModekData
+	ModelData modelData;            //構築するModelData
 	std::vector<Vector4>positions;  //位置
 	std::vector<Vector3>normals;    //法線
 	std::vector<Vector2>texcoords;  //テクスチャ座標
@@ -397,7 +397,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 			modelData.vertices.push_back(triangle[0]);
 		}
 		else if (identifier == "mtllib") {
-			//materialTemlateLibraryファイルの名前を取得する
+			//materialTemplateLibraryファイルの名前を取得する
 			std::string materialFilename;
 			s >> materialFilename;
 			//基本的にobjファイルと同一階層にmtlは存在させるので、ディレクトリ名とファイル名を渡す
@@ -797,7 +797,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region DepthStencilState
 	// DepthStencilStateの設定
 	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	// Deothの機能を有効化する
+	// Depthの機能を有効化する
 	depthStencilDesc.DepthEnable = true;
 	// 書き込みします
 	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -841,7 +841,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region VertexResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device, sizeof(VertexData) * kSubdivision * kSubdivision * 6);
 #pragma region DepthStencilTextureを作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> depthStenciResource = CreateDepthStencilTexturResource(device, kClientWidth, kClientHeight);
+	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource = CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 #pragma region VertexBufferResourceを生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 4);
 #pragma region IndexResourceを生成
@@ -856,7 +856,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//Format
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;//2Dtexture
 	//DSHeapの先頭にDSVを作る
-	device->CreateDepthStencilView(depthStenciResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	device->CreateDepthStencilView(depthStencilResource.Get(), &dsvDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 #pragma endregion
 
 
@@ -1069,12 +1069,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region ModelTransform用のResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResourceModel = CreateBufferResource(device, sizeof(TransformationMatrix));
 	//データを書き込む
-	TransformationMatrix* transformaitionMatrixDataModel = nullptr;
+	TransformationMatrix* transformationMatrixDataModel = nullptr;
 	//書き込むためのアドレスを取得
-	transformationMatrixResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformaitionMatrixDataModel));
+	transformationMatrixResourceModel->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixDataModel));
 	//単位行列を書き込む
-	transformaitionMatrixDataModel->WVP = MakeIdentity4x4();
-	transformaitionMatrixDataModel->World = MakeIdentity4x4();
+	transformationMatrixDataModel->WVP = MakeIdentity4x4();
+	transformationMatrixDataModel->World = MakeIdentity4x4();
 #pragma endregion
 
 
@@ -1126,7 +1126,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResource(device, metadata2);
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource2 = UploadTextureData(textureResource2, mipImages2, device, commandList);
 
-	//Textur3を読んで転送する
+	//Texture3を読んで転送する
 	DirectX::ScratchImage mipImages3 = LoadTexture(modelData.material.textureFilePath);
 	const DirectX::TexMetadata& metadata3 = mipImages3.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource3 = CreateTextureResource(device, metadata3);
@@ -1140,13 +1140,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;//2Dテクスチャ
 	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
 
-	//meraDara2を気にSRVの設定
+	//metaDara2を気にSRVの設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2{  };
 	srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;//2Dテクスチャ
 	srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
 
-	//meraDara3を気にSRVの設定
+	//metaDara3を気にSRVの設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3{  };
 	srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;//2Dテクスチャ
@@ -1228,8 +1228,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			Matrix4x4 worldMatrixmodel = MakeAffineMatrix(transformModel.scale, transformModel.rotate, transformModel.translate);
 			Matrix4x4 worldViewProjectionMatrixModel = Multiply(worldMatrixmodel, Multiply(viewMatrix, projectionMatrix));
-			transformaitionMatrixDataModel->WVP = worldViewProjectionMatrixModel;
-			transformaitionMatrixDataModel->World = worldMatrixmodel;
+			transformationMatrixDataModel->WVP = worldViewProjectionMatrixModel;
+			transformationMatrixDataModel->World = worldMatrixmodel;
 
 
 #pragma region WVPMatrixを作って書き込む
@@ -1284,7 +1284,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// モデルウィンドウ
 			if (ImGui::CollapsingHeader("Model"))
 			{
-				ImGui::DragFloat3("ModelTransrate", &transformModel.translate.x, 0.01f);
+				ImGui::DragFloat3("ModelTranslate", &transformModel.translate.x, 0.01f);
 				ImGui::DragFloat3("ModelRotate", &transformModel.rotate.x, 0.01f);
 				ImGui::DragFloat3("ModelScale", &transformModel.scale.x, 0.01f);
 				if (ImGui::Button("Reset Transform")) {
@@ -1344,8 +1344,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 			//描画用のDescriptHeap
-			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHepes[] = { srvDescriptorHeap };
-			commandList->SetDescriptorHeaps(1, descriptorHepes->GetAddressOf());
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeaps[] = { srvDescriptorHeap };
+			commandList->SetDescriptorHeaps(1, descriptorHeaps->GetAddressOf());
 			//コマンドリストの内容を確定させる。
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
