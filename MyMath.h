@@ -51,6 +51,10 @@ struct ModelData {
 	MaterialData material;
 };
 
+struct CameraForGPU {
+	Vector3 worldPosition;
+};
+
 
 Matrix4x4 MakeIdentity4x4();
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
